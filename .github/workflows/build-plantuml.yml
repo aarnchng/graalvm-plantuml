@@ -1,0 +1,41 @@
+name: 'Build PlantUML'
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'PlantUML version'
+        default: '1.2024.3'
+        required: true
+      release:
+        description: 'Release count'
+        type: string
+        required: true
+jobs:
+  native_build:
+    name: 'Build PlantUML on ${{ matrix.os }}'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: robinraju/release-downloader@v1
+        with:
+          repository: 'plantuml/plantuml'
+          tag: 'v${{ github.event.inputs.version }}'
+          fileName: 'plantuml-${{ github.event.inputs.version }}.jar'
+      - uses: graalvm/setup-graalvm@v1
+        with:
+          java-version: '21'
+          distribution: 'graalvm'
+          native-image-job-reports: 'true'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: 'Build PlantUML'
+        run: |
+          native-image -H:Name=plantuml-${{ github.event.inputs.version }}-x86_64 -cp plantuml-${{ github.event.inputs.version }}.jar net.sourceforge.plantuml.Run
+      - uses: svenstaro/upload-release-action@v2
+        with:
+          file_glob: true
+          file: 'plantuml-*'
+          tag: '${{ github.event.inputs.version }}-${{ github.event.inputs.release }}'
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
